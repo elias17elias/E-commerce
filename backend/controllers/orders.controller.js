@@ -8,6 +8,15 @@ export const getAllOrders = async (req, res, next) => {
 
 };
 
+export const getOrdersByUserId = async (req, res, next) => {
+    const orders = await ordersService.getOrdersByUserId(
+        req.params.userId,
+        req.user,
+        req.listQuery
+    );
+    res.status(200).json(orders);
+};
+
 export const getOrderById = async (req, res, next) => {
     const { id } = req.params;
 

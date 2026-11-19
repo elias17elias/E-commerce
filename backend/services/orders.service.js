@@ -5,6 +5,24 @@ import { AppError, ForbiddenError, NotFoundError } from '../utils/AppError.js';
 export const getAllOrders = async (query) => {
     return await ordersRepository.findAll(query);
 };
+
+export const getOrdersByUserId = async (userId, requestingUser, query) => {
+    if (
+        requestingUser.role !== 'admin' &&
+        String(requestingUser.id) !== String(userId)
+    ) {
+        throw new ForbiddenError('You do not have permission to access this resource');
+    }
+
+    return await ordersRepository.findAll({
+        ...query,
+        filters: {
+            ...query.filters,
+            userId: Number(userId),
+        },
+    });
+};
+
 export const getOrderById = async (id, requestingUser) => {
     const order = await ordersRepository.findById(id);
     if (!order) {

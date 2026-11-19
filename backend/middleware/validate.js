@@ -52,7 +52,7 @@ export const validateProduct = (req, res, next) => {
 export const validateId = (paramName) => {
     return (req, res, next) => {
         const id = req.params[paramName];
-        if (!/^[1-9]\d*$/.test(id)) {
+        if (!/^[1-9]\d*$/.test(id) || Number(id) > 2147483647) {
             throw new AppError(`Invalid ${paramName}`, 400);
         }
         next();
@@ -161,20 +161,32 @@ export const validateProductListQuery = (req, res, next) => {
     next();
 };
 
+const parseOrderStatus = (value, name) => {
+    if (!['pending', 'completed', 'cancelled'].includes(value)) {
+        throw new AppError(`${name} must be pending, completed, or cancelled`, 400);
+    }
+    return value;
+};
+
+const parseOrderUserId = (value, name) => {
+    if (!/^[1-9]\d*$/.test(value) || Number(value) > 2147483647) {
+        throw new AppError(`${name} must be a valid user ID`, 400);
+    }
+    return Number(value);
+};
+
 export const validateOrderListQuery = (req, res, next) => {
     const parsed = parseListQuery(req.query, ['status', 'userId'], {
-        status: (value, name) => {
-            if (!['pending', 'completed', 'cancelled'].includes(value)) {
-                throw new AppError(`${name} must be pending, completed, or cancelled`, 400);
-            }
-            return value;
-        },
-        userId: (value, name) => {
-            if (!/^[1-9]\d*$/.test(value) || Number(value) > 2147483647) {
-                throw new AppError(`${name} must be a valid user ID`, 400);
-            }
-            return Number(value);
-        },
+        status: parseOrderStatus,
+        userId: parseOrderUserId,
+    });
+    req.listQuery = parsed;
+    next();
+};
+
+export const validateUserOrderListQuery = (req, res, next) => {
+    const parsed = parseListQuery(req.query, ['status'], {
+        status: parseOrderStatus,
     });
     req.listQuery = parsed;
     next();
