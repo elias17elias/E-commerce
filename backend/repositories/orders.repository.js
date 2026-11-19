@@ -64,7 +64,7 @@ export const findAll = async ({ cursor, limit, filters }) => {
 
 export const findById = async (id) => {
     const result = await db.query(
-        `SELECT orders.id, orders.user_id, orders.status,
+        `SELECT orders.id, orders.user_id, orders.status, orders.created_at,
             order_items.id AS order_item_id,
             order_items.product_id,
             products.name AS product_name,
