@@ -64,10 +64,39 @@ export const findAll = async ({ cursor, limit, filters }) => {
 
 export const findById = async (id) => {
     const result = await db.query(
-        'SELECT id, user_id, status FROM orders WHERE id = $1',
+        `SELECT orders.id, orders.user_id, orders.status,
+            order_items.id AS order_item_id,
+            order_items.product_id,
+            products.name AS product_name,
+            order_items.quantity,
+            order_items.price
+        FROM orders
+        LEFT JOIN order_items ON order_items.order_id = orders.id
+        LEFT JOIN products ON products.id = order_items.product_id
+        WHERE orders.id = $1
+        ORDER BY order_items.id`,
         [id]
     );
-    return result.rows[0] ?? null;
+    if (result.rows.length === 0) {
+        return null;
+    }
+
+    const order = {
+        id: result.rows[0].id,
+        user_id: result.rows[0].user_id,
+        status: result.rows[0].status,
+        order_items: result.rows
+            .filter(row => row.order_item_id !== null)
+            .map(({ order_item_id, product_id, product_name, quantity, price }) => ({
+                id: order_item_id,
+                product_id,
+                product_name,
+                quantity,
+                price,
+            })),
+    };
+
+    return order;
 };
 
 const restoreStock = async (client, orderId) => {
