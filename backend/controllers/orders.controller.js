@@ -10,7 +10,7 @@ export const getAllOrders = async (req, res, next) => {
 
 export const getOrdersByUserId = async (req, res, next) => {
     const orders = await ordersService.getOrdersByUserId(
-        req.params.userId,
+        req.params.id,
         req.user,
         req.listQuery
     );
