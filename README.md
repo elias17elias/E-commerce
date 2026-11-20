@@ -21,6 +21,32 @@ A REST API for an e-commerce application, built with Node.js, Express, and Postg
 - Argon2 password hashing
 - JWT access tokens and rotating refresh tokens
 
+## Frontend
+
+The frontend is a responsive single-page storefront built with React 18, Vite, and Tailwind CSS. Lucide icons are used for interface controls.
+
+### What it includes
+
+- Browse the product catalog, search by name, and filter by availability, price, and stock.
+- Add products to a shopping bag, change quantities, and place orders using the signed-in user's store balance.
+- Register, sign in, request a password-reset email, and choose a new password from the emailed link.
+- View account balance and paginated order history; expand an order to see its items.
+- Admin studio for managing products, reviewing and updating orders, and adding funds to user balances.
+- Responsive layouts, loading and error states, and a cart that remains available after refreshing the page.
+
+The cart is stored in browser `localStorage`; access tokens are kept in memory. The API client sends the refresh cookie with credentialed requests and reads the API base URL from `VITE_API_URL`.
+
+### Frontend structure
+
+- `src/App.jsx` owns shared application state, session restoration, API orchestration, cart and checkout actions, and connects the page components.
+- `src/api.js` is the shared fetch client, parses API errors, includes credentials, and coordinates refresh requests.
+- `src/components/StoreHeader.jsx`, `Hero.jsx`, `ProductCollection.jsx`, and `StoreFooter.jsx` make up the storefront layout and catalog.
+- `src/components/ProductCard.jsx` and `CartDrawer.jsx` render product and shopping-bag UI.
+- `src/components/AuthModal.jsx` handles registration, sign-in, and password reset.
+- `src/components/AccountModal.jsx` shows account details and order history.
+- `src/components/AdminPanel.jsx` contains the admin tools.
+- `src/index.css` defines Tailwind layers and shared form/button styles; `tailwind.config.js` defines the design tokens.
+
 ## Getting started
 
 ### Prerequisites
@@ -82,6 +108,21 @@ npm run dev
 
 The API listens on `http://localhost:3000` unless `PORT` is configured.
 
+### Start the frontend
+
+In another terminal:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+The Vite development server is available at `http://localhost:5173`. Set `VITE_API_URL` in `frontend/.env` if the API is hosted somewhere other than `http://localhost:3000`. For local development, set the backend's `FRONTEND_URL` to `http://localhost:5173` so credentialed requests and the refresh-token cookie work.
+
+To create a production build, run `npm run build` from `frontend/`. To serve that build locally, run `npm run preview`.
+
 ## API overview
 
 All routes are mounted at the root path shown below. Protected routes require:
@@ -120,10 +161,46 @@ The refresh-token endpoints use the `refreshToken` HTTP-only cookie issued at lo
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
 | `GET` | `/orders` | Admin | List orders; supports `status`, `userId`, `cursor`, and `limit` |
+| `GET` | `/orders/user/:id` | Owner or admin | List orders for the authenticated user, or for any user when requested by an admin |
 | `GET` | `/orders/:id` | Owner or admin | Get an order, including its items |
 | `POST` | `/orders` | Authenticated user or admin | Create an order |
 | `PUT` | `/orders/:id` | Admin | Change an order's status |
 | `DELETE` | `/orders/:id` | Admin | Delete an order |
+
+#### List orders for a user
+
+`GET /orders/user/:id` requires a bearer access token. A user can request orders only for their own ID; an admin can request any user ID. The endpoint accepts these optional query parameters:
+
+- `status`: `pending`, `completed`, or `cancelled`
+- `limit`: page size from 1 to 100 (defaults to 20)
+- `cursor`: opaque cursor returned as `pagination.nextCursor` in the previous response
+
+For example:
+
+```http
+GET /orders/user/7?status=completed&limit=10
+Authorization: Bearer <access-token>
+```
+
+The response is a newest-first page of order summaries; it does not include order items. Use `GET /orders/:id` to retrieve a specific order with its items.
+
+```json
+{
+  "data": [
+    {
+      "id": 42,
+      "user_id": 7,
+      "status": "completed",
+      "created_at": "2026-11-20T08:30:00.000000Z"
+    }
+  ],
+  "pagination": {
+    "limit": 10,
+    "hasMore": false,
+    "nextCursor": null
+  }
+}
+```
 
 Create an order with a non-empty `data` array of product IDs and quantities:
 
@@ -154,6 +231,7 @@ Product and order list endpoints use cursor-based pagination with a default `lim
 
 - Passwords are hashed with Argon2; plaintext passwords are not stored.
 - JWT access tokens are signed using HS256. Their lifetime is configured with `JWT_EXPIRES_IN`.
+- The frontend keeps the access token in memory rather than persistent browser storage.
 - Refresh tokens are returned only in an HTTP-only cookie, stored as hashes in the database, and rotated on refresh. Logout and logout-all revoke refresh-token records.
 - Refresh cookies use `SameSite=Lax`, are scoped to `/auth`, and are marked `Secure` in production.
 - Password-reset tokens are stored as hashes, expire after 30 minutes, and are single-use.
@@ -175,6 +253,11 @@ Product and order list endpoints use cursor-based pagination with a default `lim
 ## Project layout
 
 ```text
+frontend/
+  src/
+    App.jsx       App state and API orchestration
+    api.js        Shared API client
+    components/   Storefront, account, cart, and admin UI components
 backend/
   config/        Environment and cookie configuration
   controllers/   HTTP handlers
@@ -186,5 +269,3 @@ backend/
   services/      Business logic
   utils/         Tokens, cursors, and application errors
 ```
-
-This repository currently contains the backend API; no frontend application is included.
